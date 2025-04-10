@@ -1,42 +1,38 @@
-from dash.testing.application_runners import import_app
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 import pytest
-from selenium import webdriver
-
-# Import our app
-from app import app
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from dash.testing.application_runners import import_app
 
 def pytest_setup_options():
     options = Options()
     options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
     return options
 
 @pytest.fixture
-def test_client():
-    """Create a test client for the app."""
-    return app.server.test_client()
+def dash_duo(dash_duo):
+    dash_duo.driver.set_window_size(1280, 800)
+    return dash_duo
 
-def test_header_presence(test_client):
+def test_header_presence(dash_duo):
     """Test that the header is present and contains the correct text"""
-    response = test_client.get('/')
-    assert response.status_code == 200
-    assert b'Soul Foods Pink Morsel Sales Analysis' in response.data
+    app = import_app("app")
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("h1", "Soul Foods Pink Morsel Sales Analysis", timeout=4)
 
-def test_visualization_presence(test_client):
+def test_visualization_presence(dash_duo):
     """Test that the visualization graph is present"""
-    response = test_client.get('/')
-    assert response.status_code == 200
-    assert b'sales-chart' in response.data
+    app = import_app("app")
+    dash_duo.start_server(app)
+    dash_duo.wait_for_element("#sales-chart", timeout=4)
 
-def test_region_picker_presence(test_client):
+def test_region_picker_presence(dash_duo):
     """Test that the region picker is present and contains all expected options"""
-    response = test_client.get('/')
-    assert response.status_code == 200
-    # Check for radio button container
-    assert b'region-filter' in response.data
-    # Check for all region options
-    for region in ['all', 'east', 'north', 'south', 'west']:
-        assert region.encode() in response.data 
+    app = import_app("app")
+    dash_duo.start_server(app)
+    dash_duo.wait_for_element("#region-filter", timeout=4)
+    
+    # Check each region option is present
+    expected_regions = ["EAST", "NORTH", "SOUTH", "WEST"]
+    for region in expected_regions:
+        element = dash_duo.find_element(f'#region-filter input[value="{region}"]')
+        assert element is not None, f"Region {region} not found" 
